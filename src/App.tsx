@@ -6,6 +6,7 @@ import { resizeTo } from './core/resizeEngine'
 import { generateZip } from './services/zipService'
 import { validateCustomSize } from './core/customSizeValidation'
 import { parseCustomSizesInput } from './core/parseCustomSizes'
+import logo from './assets/logo.png'
 import './index.css'
 
 interface ImageMetadata {
@@ -201,7 +202,7 @@ function App() {
   return (
     <div className="container">
       <header className="app-header">
-        <img src="/src/assets/logo.png" alt="Icon Shrinker Logo" className="header-logo" />
+        <img src={logo} alt="Icon Shrinker Logo" className="header-logo" />
         <div className="header-text">
           <h1>Icon Shrinker</h1>
           <p className="subtitle">Generate production-ready icon sizes. Downscale only.</p>
