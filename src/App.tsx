@@ -1,0 +1,198 @@
+import { useState, useEffect, type ChangeEvent } from 'react'
+import { loadImage } from './core/imageLoader'
+import { toSquareCanvas } from './core/squareNormalizer'
+import { TARGET_SIZES } from './core/iconConfig'
+import { resizeTo } from './core/resizeEngine'
+import './index.css'
+
+interface ImageMetadata {
+  width: number
+  height: number
+  name: string
+}
+
+interface GeneratedIcon {
+  size: number
+  url: string
+  blob: Blob
+}
+
+function App() {
+  const [hasFile, setHasFile] = useState(false)
+  const [metadata, setMetadata] = useState<ImageMetadata | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [normalizedUrl, setNormalizedUrl] = useState<string | null>(null)
+  const [normalizedCanvas, setNormalizedCanvas] = useState<OffscreenCanvas | null>(null)
+  const [generatedIcons, setGeneratedIcons] = useState<GeneratedIcon[]>([])
+  const [isGenerating, setIsGenerating] = useState(false)
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl)
+      if (normalizedUrl) URL.revokeObjectURL(normalizedUrl)
+      generatedIcons.forEach(icon => URL.revokeObjectURL(icon.url))
+    }
+  }, [previewUrl, normalizedUrl, generatedIcons])
+
+  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    try {
+      // Reset state for new file
+      setGeneratedIcons([])
+
+      const bitmap = await loadImage(file)
+
+      const newUrl = URL.createObjectURL(file)
+      if (previewUrl) URL.revokeObjectURL(previewUrl)
+      setPreviewUrl(newUrl)
+
+      // Square normalization
+      const squareCanvas = await toSquareCanvas(bitmap)
+      setNormalizedCanvas(squareCanvas)
+      const blob = await squareCanvas.convertToBlob({ type: 'image/png' })
+      const newNormalizedUrl = URL.createObjectURL(blob)
+      if (normalizedUrl) URL.revokeObjectURL(normalizedUrl)
+      setNormalizedUrl(newNormalizedUrl)
+
+      setMetadata({
+        width: bitmap.width,
+        height: bitmap.height,
+        name: file.name
+      })
+      setHasFile(true)
+
+      console.log('Normalized to:', squareCanvas.width, 'x', squareCanvas.height)
+      bitmap.close()
+    } catch (err) {
+      console.error(err)
+      alert('Failed to process image.')
+    }
+  }
+
+  const generateIcons = async () => {
+    if (!normalizedCanvas || !metadata) return
+
+    setIsGenerating(true)
+    const icons: GeneratedIcon[] = []
+    const sourceSize = Math.max(metadata.width, metadata.height)
+
+    try {
+      for (const size of TARGET_SIZES) {
+        if (sourceSize >= size) {
+          console.log(`Generating ${size}px icon...`)
+          const blob = await resizeTo(normalizedCanvas, size)
+          const url = URL.createObjectURL(blob)
+          icons.push({ size, blob, url })
+        } else {
+          console.log(`Skipping ${size}px icon (source is smaller)`)
+        }
+      }
+      setGeneratedIcons(icons)
+    } catch (err) {
+      console.error('Generation failed:', err)
+      alert('Failed to generate icons.')
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+
+  return (
+    <div className="container">
+      <header>
+        <h1>Icon Shrinker</h1>
+        <p className="subtitle">Production-ready icons in a single click.</p>
+      </header>
+
+      <main className="card">
+        <label htmlFor="file-upload" className="upload-area">
+          <input
+            id="file-upload"
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+          />
+          <div className="upload-icon">
+            <svg
+              width="48"
+              height="48"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+          </div>
+          <p>{hasFile ? metadata?.name : 'Drop an image or click to upload'}</p>
+        </label>
+
+        <section className="preview-area">
+          {!hasFile && <p>Preview area will appear here after upload</p>}
+          {hasFile && previewUrl && normalizedUrl && (
+            <div className="preview-content">
+              <div className="preview-grid">
+                <div className="preview-item">
+                  <p className="label">Original</p>
+                  <div className="image-wrapper original">
+                    <img src={previewUrl} alt="Original" className="image-preview" />
+                  </div>
+                  <div className="metadata-badge secondary">
+                    {metadata?.width} × {metadata?.height}
+                  </div>
+                </div>
+
+                <div className="preview-item">
+                  <p className="label">Normalized (Square)</p>
+                  <div className="image-wrapper normalized">
+                    <img src={normalizedUrl} alt="Normalized" className="image-preview" />
+                  </div>
+                  <div className="metadata-badge">
+                    {Math.max(metadata?.width || 0, metadata?.height || 0)} × {Math.max(metadata?.width || 0, metadata?.height || 0)}
+                  </div>
+                </div>
+              </div>
+
+              <div className="actions">
+                <button
+                  className="button primary"
+                  onClick={generateIcons}
+                  disabled={isGenerating}
+                >
+                  {isGenerating ? 'Forging Icons...' : 'Generate Icon Suite'}
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {generatedIcons.length > 0 && (
+          <section className="results-area">
+            <h2 className="section-title">Forged Icons</h2>
+            <div className="results-grid">
+              {generatedIcons.map(icon => (
+                <div key={icon.size} className="result-item">
+                  <div className="result-preview">
+                    <img src={icon.url} alt={`${icon.size}px icon`} />
+                  </div>
+                  <p className="result-label">{icon.size}px</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+      </main>
+
+      <footer>
+        <p>Deterministic. Client-side. Privacy-focused.</p>
+      </footer>
+    </div>
+  )
+}
+
+export default App
