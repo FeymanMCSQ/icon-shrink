@@ -1,9 +1,11 @@
 import { useState, useEffect, type ChangeEvent } from 'react'
 import { loadImage } from './core/imageLoader'
 import { toSquareCanvas } from './core/squareNormalizer'
-import { TARGET_SIZES } from './core/iconConfig'
+import { TARGET_SIZES, mergeSizes } from './core/iconConfig'
 import { resizeTo } from './core/resizeEngine'
 import { generateZip } from './services/zipService'
+import { validateCustomSize } from './core/customSizeValidation'
+import { parseCustomSizesInput } from './core/parseCustomSizes'
 import './index.css'
 
 interface ImageMetadata {
@@ -27,6 +29,9 @@ function App() {
   const [generatedIcons, setGeneratedIcons] = useState<GeneratedIcon[]>([])
   const [isGenerating, setIsGenerating] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
+  const [customSizes, setCustomSizes] = useState<number[]>([])
+  const [customInput, setCustomInput] = useState('')
+  const [inputError, setInputError] = useState<string | null>(null)
 
   useEffect(() => {
     return () => {
@@ -63,6 +68,11 @@ function App() {
         height: bitmap.height,
         name: file.name
       })
+
+      // Re-validate existing custom sizes against new image dimensions
+      const maxSize = Math.max(bitmap.width, bitmap.height)
+      setCustomSizes(prev => prev.filter(size => validateCustomSize(size, maxSize).ok))
+
       setHasFile(true)
 
       console.log('Normalized to:', squareCanvas.width, 'x', squareCanvas.height)
@@ -98,9 +108,10 @@ function App() {
     setIsGenerating(true)
     const icons: GeneratedIcon[] = []
     const sourceSize = Math.max(metadata.width, metadata.height)
+    const allSizes = mergeSizes(TARGET_SIZES, customSizes)
 
     try {
-      for (const size of TARGET_SIZES) {
+      for (const size of allSizes) {
         if (sourceSize >= size) {
           console.log(`Generating ${size}px icon...`)
           const blob = await resizeTo(normalizedCanvas, size)
@@ -117,6 +128,46 @@ function App() {
     } finally {
       setIsGenerating(false)
     }
+  }
+
+  const handleCustomSizeAdd = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!metadata) {
+      setInputError('Upload an image first.')
+      return
+    }
+
+    const { sizes, errors } = parseCustomSizesInput(customInput)
+    if (errors.length > 0) {
+      setInputError(errors[0])
+      return
+    }
+
+    const maxSize = Math.max(metadata.width, metadata.height)
+    const validNewSizes: number[] = []
+
+    for (const size of sizes) {
+      const validation = validateCustomSize(size, maxSize)
+      if (!validation.ok) {
+        setInputError(validation.reason)
+        return
+      }
+      if (!TARGET_SIZES.includes(size) && !customSizes.includes(size)) {
+        validNewSizes.push(size)
+      }
+    }
+
+    if (validNewSizes.length > 0) {
+      setCustomSizes(prev => [...prev, ...validNewSizes])
+      setCustomInput('')
+      setInputError(null)
+    } else {
+      setInputError('Size already exists or is invalid.')
+    }
+  }
+
+  const removeCustomSize = (size: number) => {
+    setCustomSizes(prev => prev.filter(s => s !== size))
   }
 
   const downloadIcon = (icon: GeneratedIcon) => {
@@ -237,6 +288,38 @@ function App() {
           )}
         </section>
 
+        <section className="custom-sizes-area">
+          <h3>Custom Sizes</h3>
+          <form className="custom-size-form" onSubmit={handleCustomSizeAdd}>
+            <div className="input-group">
+              <input
+                type="text"
+                placeholder="Add size (e.g. 207 or 180, 207)"
+                value={customInput}
+                onChange={(e) => setCustomInput(e.target.value)}
+                disabled={!hasFile}
+              />
+              <button type="submit" className="button secondary sm" disabled={!hasFile}>Add</button>
+            </div>
+            {inputError && <p className="inline-error">{inputError}</p>}
+          </form>
+
+          <div className="custom-sizes-list">
+            {customSizes.map(size => (
+              <div key={size} className="size-chip">
+                <span>{size}px</span>
+                <button
+                  className="remove-chip"
+                  onClick={() => removeCustomSize(size)}
+                  title="Remove"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+
         {generatedIcons.length > 0 && (
           <section className="results-area">
             <div className="results-header">
@@ -250,9 +333,10 @@ function App() {
               </button>
             </div>
             <div className="results-grid">
-              {TARGET_SIZES.map(size => {
+              {mergeSizes(TARGET_SIZES, customSizes).map(size => {
                 const icon = generatedIcons.find(i => i.size === size);
                 const isAvailable = !!icon;
+                const isCustom = customSizes.includes(size);
 
                 return (
                   <div key={size} className={`result-item ${isAvailable ? '' : 'unavailable'}`}>
@@ -267,6 +351,7 @@ function App() {
                           </svg>
                         </div>
                       )}
+                      {isAvailable && isCustom && <span className="custom-badge">Custom</span>}
                     </div>
                     <div className="result-meta">
                       <p className="result-label">{size}px</p>
