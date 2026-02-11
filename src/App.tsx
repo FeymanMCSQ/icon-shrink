@@ -3,6 +3,7 @@ import { loadImage } from './core/imageLoader'
 import { toSquareCanvas } from './core/squareNormalizer'
 import { TARGET_SIZES } from './core/iconConfig'
 import { resizeTo } from './core/resizeEngine'
+import { generateZip } from './services/zipService'
 import './index.css'
 
 interface ImageMetadata {
@@ -98,6 +99,34 @@ function App() {
     }
   }
 
+  const downloadIcon = (icon: GeneratedIcon) => {
+    const a = document.createElement('a')
+    a.href = icon.url
+    a.download = `icon-${icon.size}.png`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+  }
+
+  const handleZipDownload = async () => {
+    if (generatedIcons.length === 0) return
+    setIsGenerating(true)
+    try {
+      const zipBlob = await generateZip(generatedIcons)
+      const url = URL.createObjectURL(zipBlob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'icon-suite.zip'
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('ZIP failed:', err)
+      alert('Failed to generate ZIP.')
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+
   return (
     <div className="container">
       <header>
@@ -173,14 +202,36 @@ function App() {
 
         {generatedIcons.length > 0 && (
           <section className="results-area">
-            <h2 className="section-title">Forged Icons</h2>
+            <div className="results-header">
+              <h2 className="section-title">Forged Icons</h2>
+              <button
+                className="button secondary sm"
+                onClick={handleZipDownload}
+                disabled={isGenerating}
+              >
+                {isGenerating ? 'Packing...' : 'Download All (ZIP)'}
+              </button>
+            </div>
             <div className="results-grid">
               {generatedIcons.map(icon => (
                 <div key={icon.size} className="result-item">
                   <div className="result-preview">
                     <img src={icon.url} alt={`${icon.size}px icon`} />
                   </div>
-                  <p className="result-label">{icon.size}px</p>
+                  <div className="result-meta">
+                    <p className="result-label">{icon.size}px</p>
+                    <button
+                      className="icon-download-btn"
+                      onClick={() => downloadIcon(icon)}
+                      title={`Download ${icon.size}px`}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
