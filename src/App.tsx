@@ -26,6 +26,7 @@ function App() {
   const [normalizedCanvas, setNormalizedCanvas] = useState<OffscreenCanvas | null>(null)
   const [generatedIcons, setGeneratedIcons] = useState<GeneratedIcon[]>([])
   const [isGenerating, setIsGenerating] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
 
   useEffect(() => {
     return () => {
@@ -69,6 +70,25 @@ function App() {
     } catch (err) {
       console.error(err)
       alert('Failed to process image.')
+    }
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = () => {
+    setIsDragging(false)
+  }
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file && file.type.startsWith('image/')) {
+      const syntheticEvent = { target: { files: [file] } } as unknown as ChangeEvent<HTMLInputElement>
+      handleFileChange(syntheticEvent)
     }
   }
 
@@ -131,11 +151,17 @@ function App() {
     <div className="container">
       <header>
         <h1>Icon Shrinker</h1>
-        <p className="subtitle">Production-ready icons in a single click.</p>
+        <p className="subtitle">Generate production-ready icon sizes. Downscale only.</p>
       </header>
 
       <main className="card">
-        <label htmlFor="file-upload" className="upload-area">
+        <label
+          htmlFor="file-upload"
+          className={`upload-area ${isDragging ? 'dragging' : ''}`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
           <input
             id="file-upload"
             type="file"
