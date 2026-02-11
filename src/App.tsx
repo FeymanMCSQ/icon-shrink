@@ -200,9 +200,12 @@ function App() {
 
   return (
     <div className="container">
-      <header>
-        <h1>Icon Shrinker</h1>
-        <p className="subtitle">Generate production-ready icon sizes. Downscale only.</p>
+      <header className="app-header">
+        <img src="/src/assets/logo.png" alt="Icon Shrinker Logo" className="header-logo" />
+        <div className="header-text">
+          <h1>Icon Shrinker</h1>
+          <p className="subtitle">Generate production-ready icon sizes. Downscale only.</p>
+        </div>
       </header>
 
       <main className="card">
