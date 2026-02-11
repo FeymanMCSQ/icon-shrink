@@ -161,6 +161,17 @@ function App() {
           <p>{hasFile ? metadata?.name : 'Drop an image or click to upload'}</p>
         </label>
 
+        {metadata && metadata.width < 512 && (
+          <div className="low-res-warning">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            <span>Source is low-res ({metadata.width}px). Some sizes will be skipped to prevent quality loss.</span>
+          </div>
+        )}
+
         <section className="preview-area">
           {!hasFile && <p>Preview area will appear here after upload</p>}
           {hasFile && previewUrl && normalizedUrl && (
@@ -213,27 +224,45 @@ function App() {
               </button>
             </div>
             <div className="results-grid">
-              {generatedIcons.map(icon => (
-                <div key={icon.size} className="result-item">
-                  <div className="result-preview">
-                    <img src={icon.url} alt={`${icon.size}px icon`} />
+              {TARGET_SIZES.map(size => {
+                const icon = generatedIcons.find(i => i.size === size);
+                const isAvailable = !!icon;
+
+                return (
+                  <div key={size} className={`result-item ${isAvailable ? '' : 'unavailable'}`}>
+                    <div className="result-preview">
+                      {isAvailable ? (
+                        <img src={icon.url} alt={`${size}px icon`} />
+                      ) : (
+                        <div className="unavailable-placeholder">
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                    <div className="result-meta">
+                      <p className="result-label">{size}px</p>
+                      {isAvailable ? (
+                        <button
+                          className="icon-download-btn"
+                          onClick={() => downloadIcon(icon)}
+                          title={`Download ${size}px`}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="7 10 12 15 17 10" />
+                            <line x1="12" y1="15" x2="12" y2="3" />
+                          </svg>
+                        </button>
+                      ) : (
+                        <span className="small-status">Too Small</span>
+                      )}
+                    </div>
                   </div>
-                  <div className="result-meta">
-                    <p className="result-label">{icon.size}px</p>
-                    <button
-                      className="icon-download-btn"
-                      onClick={() => downloadIcon(icon)}
-                      title={`Download ${icon.size}px`}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                        <polyline points="7 10 12 15 17 10" />
-                        <line x1="12" y1="15" x2="12" y2="3" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </section>
         )}

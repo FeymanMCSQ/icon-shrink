@@ -258,6 +258,46 @@ input[type="file"] {
     object-fit: contain;
 }
 
+.low-res-warning {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+    color: #fbbf24;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    margin: 1.5rem 0;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.result-item.unavailable {
+    opacity: 0.4;
+    filter: grayscale(1);
+}
+
+.result-item.unavailable .result-preview {
+    border: 2px dashed rgba(255, 255, 255, 0.1);
+    background: transparent;
+}
+
+.unavailable-placeholder {
+    color: rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.small-status {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: rgba(255, 255, 255, 0.4);
+    font-weight: 700;
+}
+
 .result-label {
     font-size: 0.8rem;
     color: rgba(255, 255, 255, 0.6);
